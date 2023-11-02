@@ -3,13 +3,13 @@ const router = express.Router();
 
 router.post("/insert-signup", async (req, res) => {
   try {
-    if (!req.body.email || !req.body.password) {
-      return res.status(400).json({ error: "Please provide the body" });
-    }
-
     const email = req.body.email;
     const phone = req.body.phone;
     const password = req.body.password;
+
+    if (!email || !password || !phone) {
+      return res.status(400).json({ error: "Please provide the body" });
+    }
 
     const mutation = `
       mutation InsertSignin($email: String!, $phone: Int!, $password: String!) {
@@ -25,22 +25,20 @@ router.post("/insert-signup", async (req, res) => {
 
     const { default: fetch } = await import("node-fetch");
 
-    const response = await (
-      await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-hasura-admin-secret": adminSecret,
-        },
-        body: JSON.stringify({
-          query: mutation,
-          variables: { email, phone, password },
-        }),
-      })
-    ).json;
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-hasura-admin-secret": adminSecret,
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: { email, phone, password },
+      }),
+    });
 
-    const responseData = response;
-
+    const responseData = await response.json(); // Correctly parse the response
+    console.log(responseData);
     if (responseData.errors) {
       return res
         .status(400)
@@ -79,7 +77,7 @@ router.post("/check-signin", async (req, res) => {
     const adminSecret =
       "jboElHn7eyalm39pZ1n3vMpGk5egruSsHUuXVa4M0VIRUavnb4jzc6c2OslBGWwv";
 
-      const { default: fetch } = await import("node-fetch");
+    const { default: fetch } = await import("node-fetch");
 
     const response = await fetch(apiUrl, {
       method: "POST",
