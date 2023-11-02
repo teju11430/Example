@@ -3,6 +3,10 @@ const router = express.Router();
 
 router.post("/insert-signin", async (req, res) => {
   try {
+    if (!req.body.email || !req.body.phone || !req.body.password) {
+      return res.status(400).json({ error: "Please provide the body" });
+    }
+
     const email = req.body.email;
     const phone = req.body.phone;
     const password = req.body.password;
@@ -19,19 +23,21 @@ router.post("/insert-signin", async (req, res) => {
     const adminSecret =
       "jboElHn7eyalm39pZ1n3vMpGk5egruSsHUuXVa4M0VIRUavnb4jzc6c2OslBGWwv";
 
-    const {default:fetch} = await import("node-fetch");
+    const { default: fetch } = await import("node-fetch");
 
-    const response =await ( await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-hasura-admin-secret": adminSecret,
-      },
-      body: JSON.stringify({
-        query: mutation,
-        variables: { email, phone, password },
-      }),
-    })).json;
+    const response = await (
+      await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-hasura-admin-secret": adminSecret,
+        },
+        body: JSON.stringify({
+          query: mutation,
+          variables: { email, phone, password },
+        }),
+      })
+    ).json;
 
     const responseData = response;
 
