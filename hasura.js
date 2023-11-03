@@ -13,6 +13,7 @@ router.post("/insert-signup", async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    console.log('signup hash', hashedPassword);
 
     const mutation = `
       mutation InsertSignin($email: String!, $phone: Int!, $password: String!) {
@@ -60,18 +61,17 @@ router.post("/insert-signup", async (req, res) => {
 router.post("/check-signin", async (req, res) => {
   try {
     const email = req.body.email;
-    const providedPassword = req.body.password;
+    const password = req.body.password;
 
-    if (!email || !providedPassword) {
+    if (!email || !password) {
       return res
         .status(400)
         .json({ error: "Please provide the email and password" });
     }
 
-    const hashedPassword = await bcrypt.hash(providedPassword, 10);
     const query = `
-      query CheckSignin($email: String!, $password: String!) {
-        signin(where: { email: { _eq: $email }, password: { _eq: $password } }) {
+      query CheckSignin($email: String!) {
+        signin(where: { email: { _eq: $email } }) {
           id
           password
         }
@@ -90,14 +90,13 @@ router.post("/check-signin", async (req, res) => {
       },
       body: JSON.stringify({
         query,
-        variables: { email, password: hashedPassword },
+        variables: { email },
       }),
     });
 
     const responseData = await response.json();
 
     console.log("Email:", email);
-    console.log("Password:", hashedPassword);
     console.log("Response Data:", responseData);
 
     if (responseData.error) {
@@ -110,7 +109,7 @@ router.post("/check-signin", async (req, res) => {
       const id = responseData.data.signin[0].id;
 
       const passwordMatch = await bcrypt.compare(
-        hashedPassword,
+        password,
         storedPasswordHash
       );
 
