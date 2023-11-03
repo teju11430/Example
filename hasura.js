@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const bcrypt = require("bcrypt");
 
 router.post("/insert-signup", async (req, res) => {
   try {
@@ -10,6 +11,8 @@ router.post("/insert-signup", async (req, res) => {
     if (!email || !password || !phone) {
       return res.status(400).json({ error: "Please provide the body" });
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const mutation = `
       mutation InsertSignin($email: String!, $phone: Int!, $password: String!) {
@@ -33,11 +36,11 @@ router.post("/insert-signup", async (req, res) => {
       },
       body: JSON.stringify({
         query: mutation,
-        variables: { email, phone, password },
+        variables: { email, phone, password: hashedPassword },
       }),
     });
 
-    const responseData = await response.json(); // Correctly parse the response
+    const responseData = await response.json();
     console.log(responseData);
     if (responseData.errors) {
       return res
@@ -57,18 +60,20 @@ router.post("/insert-signup", async (req, res) => {
 router.post("/check-signin", async (req, res) => {
   try {
     const email = req.body.email;
-    const password = req.body.password;
+    const providedPassword = req.body.password;
 
-    if (!req.body.email || !req.body.password) {
+    if (!email || !providedPassword) {
       return res
         .status(400)
         .json({ error: "Please provide the email and password" });
     }
 
+    const hashedPassword = await bcrypt.hash(providedPassword, 10);
     const query = `
       query CheckSignin($email: String!, $password: String!) {
         signin(where: { email: { _eq: $email }, password: { _eq: $password } }) {
           id
+          password
         }
       }
     `;
@@ -76,8 +81,6 @@ router.post("/check-signin", async (req, res) => {
     const apiUrl = "https://pro-goose-67.hasura.app/v1/graphql";
     const adminSecret =
       "jboElHn7eyalm39pZ1n3vMpGk5egruSsHUuXVa4M0VIRUavnb4jzc6c2OslBGWwv";
-
-    const { default: fetch } = await import("node-fetch");
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -87,22 +90,41 @@ router.post("/check-signin", async (req, res) => {
       },
       body: JSON.stringify({
         query,
-        variables: { email, password },
+        variables: { email, password: hashedPassword },
       }),
     });
+
     const responseData = await response.json();
 
-    if (responseData.errors) {
+    console.log("Email:", email);
+    console.log("Password:", hashedPassword);
+    console.log("Response Data:", responseData);
+
+    if (responseData.error) {
       return res.status(400).json({ error: "Failed to check login" });
-    } else if (responseData.data.signin.length > 0) {
+    } else if (
+      responseData.data.signin &&
+      responseData.data.signin.length > 0
+    ) {
+      const storedPasswordHash = responseData.data.signin[0].password;
       const id = responseData.data.signin[0].id;
-      return res.status(200).json({ message: "Match found", id });
+
+      const passwordMatch = await bcrypt.compare(
+        hashedPassword,
+        storedPasswordHash
+      );
+
+      if (passwordMatch) {
+        return res.status(200).json({ message: "Password matched", id });
+      } else {
+        return res.status(401).json({ error: "Password does not match" });
+      }
     } else {
-      return res.status(404).json({ message: "No data match found" });
+      return res.status(404).json({ error: "No data match found" });
     }
   } catch (error) {
     console.error(error);
-    res
+    return res
       .status(500)
       .json({ error: "An error occurred while processing the request" });
   }
