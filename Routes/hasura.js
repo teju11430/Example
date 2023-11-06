@@ -1,8 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
-const helper = require("./Routes/helper");
-const app = require("./Routes/gql");
+const helper = require("../Utils/helper");
+const app = require("../Utils/gql");
+
+router.post("/insert-signup", helper.insertSignUp);
+router.post("/check-signin", helper.checkSignIn);
+
+module.exports = router;
 
 /*router.post("/insert-signup", async (req, res) => {
   try {
@@ -60,37 +65,6 @@ const app = require("./Routes/gql");
   }
 });
 */
-
-router.post("/insert-signup", async (req, res) => {
-  try {
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
-    console.log("Signup hash", hashedPassword);
-
-    const mutationForSignUp = await helper.query_variable(app.insertSignUp, {
-      email: req.body.email,
-      phone: req.body.phone,
-      password: hashedPassword,
-    });
-
-    console.log(mutationForSignUp);
-    if (!req.body.email || !req.body.password || !req.body.phone) {
-      return res.status(400).json({ error: "Please provide the body" });
-    } else if (mutationForSignUp.errors) {
-      return res
-        .status(400)
-        .json({ error: "Failed to insert data into the table" });
-    } else if (mutationForSignUp.data.insert_signin.affected_rows > 0) {
-      return res.status(200).json({ message: "Data inserted successfully" });
-    } else {
-      res.status(400).json({ message: "Something else went wrong." });
-    }
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while processing the request" });
-  }
-});
 
 /*
 router.post("/check-signin", async (req, res) => {
@@ -164,36 +138,3 @@ router.post("/check-signin", async (req, res) => {
   }
 });
 */
-
-router.post("/check-signin", async (req, res) => {
-  try {
-    const querySignIn = await helper.query_variable(app.checkSignup, {
-      email: req.body.email,
-    });
-
-    if (querySignIn.error) {
-      return res.status(400).json({ error: "Failed to check login" });
-    } 
-    else if (querySignIn.data.signin && querySignIn.data.signin.length > 0) {
-      const storedPasswordHash = querySignIn.data.signin[0].password;
-      const id = querySignIn.data.signin[0].id;
-      const password = req.body.password;
-      const passwordMatch = await bcrypt.compare(password, storedPasswordHash);
-
-      if (passwordMatch) {
-        return res.status(200).json({ message: "Password matched", id });
-      } else {
-        return res.status(401).json({ error: "Password does not match" });
-      }
-    } else {
-      return res.status(404).json({ error: "No data match found" });
-    }
-  } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while processing the request" });
-  }
-});
-
-module.exports = router;
